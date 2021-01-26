@@ -1,0 +1,4 @@
+__pycache__
+.venv
+.nr7101.cookie
+*.egg-info/
