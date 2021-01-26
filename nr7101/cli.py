@@ -10,11 +10,16 @@ def cli():
 
     parser = argparse.ArgumentParser(description='NR7101 status fetcher')
     parser.add_argument('--verbose', '-v', action='count', default=0)
+    parser.add_argument('--cookie', default='.nr7101.cookie')
+    parser.add_argument('--no-cookie', action='store_true')
     parser.add_argument('url')
     parser.add_argument('username')
     parser.add_argument('password')
 
     args = parser.parse_args()
+
+    if args.no_cookie:
+        args.cookie = None
 
     if args.verbose > 0:
         http.client.HTTPConnection.debuglevel = 1
@@ -25,7 +30,7 @@ def cli():
         requests_log.propagate = True
 
     try:
-        status = get_status(args.url, args.username, args.password)
+        status = get_status(args.url, args.username, args.password, args.cookie)
         if status:
             pprint(status)
     except OSError:

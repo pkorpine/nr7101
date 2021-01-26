@@ -12,6 +12,8 @@ Usage:
 nr7101-tool https://192.168.1.1 admin password
 ```
 
+Note that by default the tool stores cookies to a file `.nr7101.cookie`. This can be changed with `--cookie`/`--no-cookie`.
+
 Example output:
 
 ```
