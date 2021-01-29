@@ -1,12 +1,12 @@
 # Zyxel NR7101 tool
 
-Installation:
+## Installation
 
 ```sh
 pip3 install git+https://github.com/pkorpine/nr7101.git
 ```
 
-Usage:
+## Usage
 
 ```sh
 nr7101-tool https://192.168.1.1 admin password
@@ -14,7 +14,7 @@ nr7101-tool https://192.168.1.1 admin password
 
 Note that by default the tool stores cookies to a file `.nr7101.cookie`. This can be changed with `--cookie`/`--no-cookie`.
 
-Example output:
+## Example output
 
 ```
 {'CELL_Roaming_Enable': False,
