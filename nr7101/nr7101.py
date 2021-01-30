@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_status(url, username, password, params={}):
+    status = {}
     password_b64 = base64.b64encode(password.encode('utf-8')).decode('utf-8')
     login = {
         'Input_Account': username,
@@ -53,10 +54,29 @@ def get_status(url, username, password, params={}):
             raise ConnectionError
         j = r.json()
         assert j['result'] == 'ZCFG_SUCCESS'
-        status = j['Object'][0]
+        status['cellular'] = j['Object'][0]
+
+    # Get traffic status
+    with requests.get(url + '/cgi-bin/DAL?oid=Traffic_Status', **params) as r:
+        if r.status_code == 504:
+            # NR7101 sometimes respons "Timeout"
+            raise TimeoutError
+        if r.status_code != 200:
+            logger.error('Unable to fetch Traffic_Status. Status=%d %s', r.status_code, r.text)
+            raise ConnectionError
+        j = r.json()
+        assert j['result'] == 'ZCFG_SUCCESS'
+        status['traffic'] = parse_traffic_object(j['Object'][0])
 
     # Logout
     with requests.get(f'{url}/cgi-bin/UserLogout?sessionkey={sessionkey}', **params) as r:
         assert r.status_code == 200
 
     return status
+
+
+def parse_traffic_object(obj):
+    ret = {}
+    for iface, iface_st in zip(obj['ipIface'], obj['ipIfaceSt']):
+        ret[iface['X_ZYXEL_IfName']] = iface_st
+    return ret
