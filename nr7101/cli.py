@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
-from pprint import pprint
 import logging
 import json
 import http.client
@@ -58,7 +57,7 @@ def cli():
     for _retry in range(RETRY_COUNT):
         try:
             status = get_status(args.url, args.username, args.password, params)
-            pprint(status)
+            print(json.dumps(status, indent=2))
 
             if not args.no_cookie:
                 store_cookies(params['cookies'], args.cookie)
