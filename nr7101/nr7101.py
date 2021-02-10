@@ -99,7 +99,7 @@ class NR7101:
                 logger.warn(e)
                 if e.response.status_code == 401:
                     # Unauthorized
-                    self.info('Login')
+                    logger.info('Login')
                     self.login()
                 else:
                     retries -= 1
