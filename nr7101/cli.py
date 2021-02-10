@@ -4,31 +4,12 @@ import argparse
 import logging
 import json
 import http.client
-from .nr7101 import get_status
+from .nr7101 import NR7101
 from .version import __version__
 
-RETRY_COUNT = 5
+RETRY_COUNT = 2
 
 logger = logging.getLogger(__name__)
-
-
-def load_cookies(cookiefile):
-    cookies = {}
-    try:
-        with open(cookiefile, 'rt') as f:
-            cookies = json.load(f)
-        logger.debug("Cookies loaded")
-    except FileNotFoundError:
-        logger.debug("Cookie file does not exist, ignoring.")
-    except json.JSONDecodeError:
-        logger.warn("Ignoring invalid cookie file.")
-    return cookies
-
-
-def store_cookies(cookies, cookiefile):
-    with open(cookiefile, 'wt') as f:
-        json.dump(cookies, f)
-    logger.debug("Cookies saved")
 
 
 def cli():
@@ -42,9 +23,10 @@ def cli():
 
     args = parser.parse_args()
 
-    params = {}
+    dev = NR7101(args.url, args.username, args.password)
+
     if not args.no_cookie:
-        params['cookies'] = load_cookies(args.cookie)
+        dev.load_cookies(args.cookie)
 
     if args.verbose > 0:
         http.client.HTTPConnection.debuglevel = 1
@@ -56,11 +38,11 @@ def cli():
 
     for _retry in range(RETRY_COUNT):
         try:
-            status = get_status(args.url, args.username, args.password, params)
+            status = dev.get_status(RETRY_COUNT)
             print(json.dumps(status, indent=2))
 
             if not args.no_cookie:
-                store_cookies(params['cookies'], args.cookie)
+                dev.store_cookies(args.cookie)
             break
         except OSError:
             logger.warn("Unable to connect")

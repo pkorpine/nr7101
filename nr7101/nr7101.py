@@ -9,74 +9,106 @@ import urllib3
 logger = logging.getLogger(__name__)
 
 
-def get_status(url, username, password, params={}):
-    status = {}
-    password_b64 = base64.b64encode(password.encode('utf-8')).decode('utf-8')
-    login = {
-        'Input_Account': username,
-        'Input_Passwd': password_b64,
-        'currLang': 'en',
-        'RememberPassword': 0,
-        'SHA512_password': False,
-    }
-    login_json = json.dumps(login)
+class NR7101Exception(Exception):
+    def __init__(self, error):
+        self.error = error
 
-    # NR7101 is using by default self-signed certificates, so ignore the warnings
-    params['verify'] = False
-    urllib3.disable_warnings()
 
-    # Check connection
-    with requests.get(url + '/getBasicInformation', **params) as r:
-        assert r.status_code == 200
-        assert r.json()['result'] == 'ZCFG_SUCCESS', 'Connection failure'
+class NR7101:
+    def __init__(self, url, username, password, params={}):
+        self.url = url
+        self.params = params
+        password_b64 = base64.b64encode(password.encode('utf-8')).decode('utf-8')
+        self.login_params = {
+            'Input_Account': username,
+            'Input_Passwd': password_b64,
+            'currLang': 'en',
+            'RememberPassword': 0,
+            'SHA512_password': False,
+        }
 
-    # Login
-    with requests.post(url + '/UserLogin', data=login_json, **params) as r:
-        if r.status_code != 200:
-            logger.error('Unauthorized')
+        # NR7101 is using by default self-signed certificates, so ignore the warnings
+        self.params['verify'] = False
+        urllib3.disable_warnings()
+
+    def load_cookies(self, cookiefile):
+        cookies = {}
+        try:
+            with open(cookiefile, 'rt') as f:
+                cookies = json.load(f)
+            logger.debug('Cookies loaded')
+            self.params['cookies'] = cookies
+        except FileNotFoundError:
+            logger.debug('Cookie file does not exist, ignoring.')
+        except json.JSONDecodeError:
+            logger.warn('Ignoring invalid cookie file.')
+
+    def store_cookies(self, cookiefile):
+        try:
+            cookies = self.params['cookies']
+        except KeyError:
+            logger.warn('No cookie to write')
             return
-        sessionkey = r.json()['sessionkey']
 
-        # Update cookies
-        params['cookies'] = requests.utils.dict_from_cookiejar(r.cookies)
+        with open(cookiefile, 'wt') as f:
+            json.dump(cookies, f)
+        logger.debug('Cookies saved')
 
-    # Check login
-    with requests.get(url + '/UserLoginCheck', **params) as r:
-        assert r.status_code == 200
+    def login(self):
+        login_json = json.dumps(self.login_params)
 
-    # Get cellular status
-    with requests.get(url + '/cgi-bin/DAL?oid=cellwan_status', **params) as r:
-        if r.status_code == 504:
-            # NR7101 sometimes respons "Timeout"
-            raise TimeoutError
-        if r.status_code != 200:
-            logger.error('Unable to fetch cellwan_status. Status=%d %s', r.status_code, r.text)
-            raise ConnectionError
-        j = r.json()
-        assert j['result'] == 'ZCFG_SUCCESS'
-        status['cellular'] = j['Object'][0]
+        with requests.post(self.url + '/UserLogin', data=login_json, **self.params) as r:
+            if r.status_code != 200:
+                logger.error('Unauthorized')
+                return
 
-    # Get traffic status
-    with requests.get(url + '/cgi-bin/DAL?oid=Traffic_Status', **params) as r:
-        if r.status_code == 504:
-            # NR7101 sometimes respons "Timeout"
-            raise TimeoutError
-        if r.status_code != 200:
-            logger.error('Unable to fetch Traffic_Status. Status=%d %s', r.status_code, r.text)
-            raise ConnectionError
-        j = r.json()
-        assert j['result'] == 'ZCFG_SUCCESS'
-        status['traffic'] = parse_traffic_object(j['Object'][0])
+            # Update cookies
+            self.params['cookies'] = requests.utils.dict_from_cookiejar(r.cookies)
 
-    # Logout
-    with requests.get(f'{url}/cgi-bin/UserLogout?sessionkey={sessionkey}', **params) as r:
-        assert r.status_code == 200
+            return r.json()['sessionkey']
 
-    return status
+    def logout(self, sessionkey):
+        with requests.get(f'{self.url}/cgi-bin/UserLogout?sessionkey={sessionkey}', **self.params) as r:
+            assert r.status_code == 200
 
+    def connect(self):
+        with requests.get(self.url + '/getBasicInformation', **self.params) as r:
+            assert r.status_code == 200
+            assert r.json()['result'] == 'ZCFG_SUCCESS', 'Connection failure'
 
-def parse_traffic_object(obj):
-    ret = {}
-    for iface, iface_st in zip(obj['ipIface'], obj['ipIfaceSt']):
-        ret[iface['X_ZYXEL_IfName']] = iface_st
-    return ret
+        # Check login
+        with requests.get(self.url + '/UserLoginCheck', **self.params) as r:
+            assert r.status_code == 200
+
+    def get_status(self, retries=1):
+        def parse_traffic_object(obj):
+            ret = {}
+            for iface, iface_st in zip(obj['ipIface'], obj['ipIfaceSt']):
+                ret[iface['X_ZYXEL_IfName']] = iface_st
+            return ret
+
+        while retries > 0:
+            try:
+                cellular = self.get_json_object('cellwan_status')
+                traffic = parse_traffic_object(self.get_json_object('Traffic_Status'))
+                return {
+                    'cellular': cellular,
+                    'traffic': traffic,
+                }
+            except requests.exceptions.HTTPError as e:
+                print(e)
+                if e.response.status_code == 401:
+                    # Unauthorized
+                    self.login()
+                else:
+                    retries -= 1
+
+        return None
+
+    def get_json_object(self, oid):
+        with requests.get(self.url + '/cgi-bin/DAL?oid=' + oid, **self.params) as r:
+            print('GET', r.status_code)
+            r.raise_for_status()
+            j = r.json()
+            assert j['result'] == 'ZCFG_SUCCESS'
+            return j['Object'][0]
