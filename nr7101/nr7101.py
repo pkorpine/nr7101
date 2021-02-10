@@ -96,9 +96,10 @@ class NR7101:
                     'traffic': traffic,
                 }
             except requests.exceptions.HTTPError as e:
-                print(e)
+                logger.warn(e)
                 if e.response.status_code == 401:
                     # Unauthorized
+                    self.info('Login')
                     self.login()
                 else:
                     retries -= 1
@@ -107,7 +108,6 @@ class NR7101:
 
     def get_json_object(self, oid):
         with requests.get(self.url + '/cgi-bin/DAL?oid=' + oid, **self.params) as r:
-            print('GET', r.status_code)
             r.raise_for_status()
             j = r.json()
             assert j['result'] == 'ZCFG_SUCCESS'
