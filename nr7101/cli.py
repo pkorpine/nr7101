@@ -36,11 +36,11 @@ def cli():
         requests_log.setLevel(logging.DEBUG)
         requests_log.propagate = True
 
+    status = None
+
     for _retry in range(RETRY_COUNT):
         try:
             status = dev.get_status(RETRY_COUNT)
-            print(json.dumps(status, indent=2))
-
             if not args.no_cookie:
                 dev.store_cookies(args.cookie)
             break
@@ -51,6 +51,14 @@ def cli():
         except ConnectionError:
             pass
 
+    print(json.dumps(status, indent=2))
+
+    if status is None:
+        return 1
+
+    return 0
 
 if __name__ == "__main__":
-    cli()
+    import sys
+    rc = cli()
+    sys.exit(rc)
