@@ -43,6 +43,9 @@ class NR7101:
         except json.JSONDecodeError:
             logger.warn('Ignoring invalid cookie file.')
 
+    def clear_cookies(self):
+        self.params.pop('cookies', None)
+
     def store_cookies(self, cookiefile):
         try:
             cookies = self.params['cookies']
@@ -101,6 +104,10 @@ class NR7101:
                     # Unauthorized
                     logger.info('Login')
                     self.login()
+                elif e.response.status_code == 500:
+                    logger.info('Internal server error received. Retrying without cookies.')
+                    self.clear_cookies()
+                    retries -= 1
                 else:
                     retries -= 1
 
