@@ -15,6 +15,10 @@ nr7101-tool https://192.168.1.1 admin password
 Note that by default the tool stores cookies to a file `.nr7101.cookie`. The file can be specified with `--cookie`.
 The cookie file can be disregarded with `--no-cookie`.
 
+The tool can reboot the unit when the connection is down (i.e. `INTF_STATUS` ==
+`Down`). Use `--reboot` to enable this feature. If you want to reboot the unit
+regardless of the connection status, use `--force-reboot`.
+
 ## Example output
 
 ```json

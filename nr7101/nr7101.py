@@ -26,6 +26,7 @@ class NR7101:
             'RememberPassword': 0,
             'SHA512_password': False,
         }
+        self.sessionkey = None
 
         # NR7101 is using by default self-signed certificates, so ignore the warnings
         self.params['verify'] = False
@@ -67,10 +68,12 @@ class NR7101:
 
             # Update cookies
             self.params['cookies'] = requests.utils.dict_from_cookiejar(r.cookies)
+            self.sessionkey = r.json()['sessionkey']
+            return self.sessionkey
 
-            return r.json()['sessionkey']
-
-    def logout(self, sessionkey):
+    def logout(self, sessionkey=None):
+        if sessionkey is None:
+            sessionkey = self.sessionkey
         with requests.get(f'{self.url}/cgi-bin/UserLogout?sessionkey={sessionkey}', **self.params) as r:
             assert r.status_code == 200
 
@@ -119,3 +122,13 @@ class NR7101:
             j = r.json()
             assert j['result'] == 'ZCFG_SUCCESS'
             return j['Object'][0]
+
+    def reboot(self):
+        if self.sessionkey is None:
+            self.login()
+
+        logger.info("Rebooting...")
+        with requests.post(f'{self.url}/cgi-bin/Reboot?sessionkey={self.sessionkey}', **self.params) as r:
+            r.raise_for_status()
+            j = r.json()
+            assert j['result'] == 'ZCFG_SUCCESS'
