@@ -140,3 +140,6 @@ class NR7101:
             r.raise_for_status()
             j = r.json()
             assert j["result"] == "ZCFG_SUCCESS"
+
+        # Session is lost during reboot
+        self.sessionkey = None

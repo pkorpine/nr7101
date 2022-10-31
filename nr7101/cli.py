@@ -4,7 +4,9 @@ import argparse
 import logging
 import json
 import http.client
+from datetime import timedelta
 from .nr7101 import NR7101
+from .rebooter import rebooter
 from .version import __version__
 
 RETRY_COUNT = 2
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def cli():
     parser = argparse.ArgumentParser(
-        description=f"NR7101 status fetcher v{__version__}"
+        description=f"NR7101 status fetcher v{__version__}", fromfile_prefix_chars="@"
     )
     parser.add_argument("--verbose", "-v", action="count", default=0)
     parser.add_argument("--cookie", default=".nr7101.cookie")
@@ -29,6 +31,21 @@ def cli():
         action="store_true",
         help="Reboot the unit regardless of the connection status",
     )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="Monitor given URLs and issue reboot if no response",
+    )
+    parser.add_argument(
+        "--monitor-interval", type=int, default=60, help="Monitor interval in seconds"
+    )
+    parser.add_argument(
+        "--monitor-threshold",
+        type=int,
+        default=300,
+        help="Grace period before issueing reboot",
+    )
+    parser.add_argument("--monitor-url", "-u", action="append", help="URL to monitor")
     parser.add_argument("url")
     parser.add_argument("username")
     parser.add_argument("password")
@@ -37,18 +54,32 @@ def cli():
 
     dev = NR7101(args.url, args.username, args.password)
 
-    if not args.no_cookie:
-        dev.load_cookies(args.cookie)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    )
 
     if args.verbose > 0:
         http.client.HTTPConnection.debuglevel = 1
-        logging.basicConfig()
         logging.getLogger().setLevel(logging.DEBUG)
         requests_log = logging.getLogger("requests.packages.urllib3")
         requests_log.setLevel(logging.DEBUG)
         requests_log.propagate = True
 
     status = None
+
+    if args.monitor:
+        delay = timedelta(seconds=args.monitor_interval)
+        threshold = timedelta(seconds=args.monitor_threshold)
+        reboot_delay = timedelta(minutes=5)
+        if len(args.monitor_url) == 0:
+            logger.error("Use --monitor-url/-u to define URLs to monitor")
+            return -1
+        rebooter(dev, delay, threshold, reboot_delay, args.monitor_url)
+        return 0  # Never reached
+
+    if not args.no_cookie:
+        dev.load_cookies(args.cookie)
 
     for _retry in range(RETRY_COUNT):
         try:

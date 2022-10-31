@@ -19,6 +19,11 @@ The tool can reboot the unit when the connection is down (i.e. `INTF_STATUS` ==
 `Down`). Use `--reboot` to enable this feature. If you want to reboot the unit
 regardless of the connection status, use `--force-reboot`.
 
+The tool has an option to monitor given URLs and then issue a reboot. Use
+`--monitor` to select this mode, and `-u` to define URLs to check. If none of
+the URLs are reachable in the given period (`--monitor-threshold`), a reboot is
+issued.
+
 ## Example output
 
 ```json
