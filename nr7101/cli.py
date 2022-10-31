@@ -13,15 +13,25 @@ logger = logging.getLogger(__name__)
 
 
 def cli():
-    parser = argparse.ArgumentParser(description=f'NR7101 status fetcher v{__version__}')
-    parser.add_argument('--verbose', '-v', action='count', default=0)
-    parser.add_argument('--cookie', default='.nr7101.cookie')
-    parser.add_argument('--no-cookie', action='store_true')
-    parser.add_argument('--reboot', action='store_true', help='Reboot the unit if the connection is down')
-    parser.add_argument('--force-reboot', action='store_true', help='Reboot the unit regardless of the connection status')
-    parser.add_argument('url')
-    parser.add_argument('username')
-    parser.add_argument('password')
+    parser = argparse.ArgumentParser(
+        description=f"NR7101 status fetcher v{__version__}"
+    )
+    parser.add_argument("--verbose", "-v", action="count", default=0)
+    parser.add_argument("--cookie", default=".nr7101.cookie")
+    parser.add_argument("--no-cookie", action="store_true")
+    parser.add_argument(
+        "--reboot",
+        action="store_true",
+        help="Reboot the unit if the connection is down",
+    )
+    parser.add_argument(
+        "--force-reboot",
+        action="store_true",
+        help="Reboot the unit regardless of the connection status",
+    )
+    parser.add_argument("url")
+    parser.add_argument("username")
+    parser.add_argument("password")
 
     args = parser.parse_args()
 
@@ -73,5 +83,6 @@ def cli():
 
 if __name__ == "__main__":
     import sys
+
     rc = cli()
     sys.exit(rc)

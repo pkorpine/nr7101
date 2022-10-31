@@ -14,6 +14,6 @@ setup(
         "requests",
     ],
     entry_points={
-        "console_scripts": ['nr7101-tool=nr7101.cli:cli'],
+        "console_scripts": ["nr7101-tool=nr7101.cli:cli"],
     },
 )
