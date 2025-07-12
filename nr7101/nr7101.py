@@ -90,7 +90,7 @@ class NR7101:
         with requests.get(self.url + "/UserLoginCheck", **self.params) as r:
             assert r.status_code == 200
 
-    def get_status(self, retries=1):
+    def get_status(self, retries=2):
         def parse_traffic_object(obj):
             ret = {}
             for iface, iface_st in zip(obj["ipIface"], obj["ipIfaceSt"]):
@@ -116,10 +116,7 @@ class NR7101:
                         "Internal server error received. Retrying without cookies."
                     )
                     self.clear_cookies()
-                    retries -= 1
-                else:
-                    retries -= 1
-
+                retries -= 1
         return None
 
     def get_json_object(self, oid):
